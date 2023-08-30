@@ -22,7 +22,9 @@ repositories {
 }
 
 dependencies {
-    api(libs.network)
+    api(group = "io.netty", name = "netty-transport-native-epoll", version = libs.versions.netty.get(), classifier = "linux-x86_64")
+    api(group = "io.netty", name = "netty-transport-native-kqueue", version = libs.versions.netty.get(), classifier = "osx-x86_64")
+    api(libs.expiringmap)
     api(libs.natives)
     api(libs.fastutil)
     api(libs.guava)
@@ -32,6 +34,7 @@ dependencies {
     api(libs.jwt)
     api(libs.bundles.terminal)
     api(libs.bundles.log4j)
+    api(libs.bundles.netty)
     api(libs.jopt.simple)
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
