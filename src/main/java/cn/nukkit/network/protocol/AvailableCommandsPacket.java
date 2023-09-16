@@ -184,4 +184,124 @@ public class AvailableCommandsPacket extends DataPacket {
 
         this.putUnsignedVarInt(0); //enumConstraints
     }
+
+    @Override
+    public void encode589() {
+        this.reset();
+
+        LinkedHashSet<String> enumValuesSet = new LinkedHashSet<>();
+        LinkedHashSet<String> postFixesSet = new LinkedHashSet<>();
+        LinkedHashSet<CommandEnum> enumsSet = new LinkedHashSet<>();
+
+        commands.forEach((name, data) -> {
+            CommandData cmdData = data.versions.get(0);
+
+            if (cmdData.aliases != null) {
+                enumsSet.add(cmdData.aliases);
+
+                enumValuesSet.addAll(cmdData.aliases.getValues());
+            }
+
+            for (CommandOverload overload : cmdData.overloads.values()) {
+                for (CommandParameter parameter : overload.input.parameters) {
+                    if (parameter.enumData != null) {
+                        enumsSet.add(parameter.enumData);
+
+                        enumValuesSet.addAll(parameter.enumData.getValues());
+                    }
+
+                    if (parameter.postFix != null) {
+                        postFixesSet.add(parameter.postFix);
+                    }
+                }
+            }
+        });
+
+        List<String> enumValues = new ArrayList<>(enumValuesSet);
+        List<CommandEnum> enums = new ArrayList<>(enumsSet);
+        List<String> postFixes = new ArrayList<>(postFixesSet);
+
+        this.putUnsignedVarInt(enumValues.size());
+        enumValues.forEach(this::putString);
+
+        this.putUnsignedVarInt(postFixes.size());
+        postFixes.forEach(this::putString);
+
+        ObjIntConsumer<BinaryStream> indexWriter;
+        if (enumValues.size() < 256) {
+            indexWriter = WRITE_BYTE;
+        } else if (enumValues.size() < 65536) {
+            indexWriter = WRITE_SHORT;
+        } else {
+            indexWriter = WRITE_INT;
+        }
+
+        this.putUnsignedVarInt(enums.size());
+        enums.forEach((cmdEnum) -> {
+            putString(cmdEnum.getName());
+
+            List<String> values = cmdEnum.getValues();
+            putUnsignedVarInt(values.size());
+
+            for (String val : values) {
+                int i = enumValues.indexOf(val);
+
+                if (i < 0) {
+                    throw new IllegalStateException("Enum value '" + val + "' not found");
+                }
+
+                indexWriter.accept(this, i);
+            }
+        });
+
+        putUnsignedVarInt(commands.size());
+        commands.forEach((name, cmdData) -> {
+            CommandData data = cmdData.versions.get(0);
+
+            putString(name);
+            putString(data.description);
+            putLShort(data.flags);
+            putByte((byte) data.permission);
+
+            putLInt(data.aliases == null ? -1 : enums.indexOf(data.aliases));
+
+            putUnsignedVarInt(data.overloads.size());
+            for (CommandOverload overload : data.overloads.values()) {
+                putUnsignedVarInt(overload.input.parameters.length);
+
+                for (CommandParameter parameter : overload.input.parameters) {
+                    putString(parameter.name);
+
+                    int type = 0;
+                    if (parameter.postFix != null) {
+                        int i = postFixes.indexOf(parameter.postFix);
+                        if (i < 0) {
+                            throw new IllegalStateException("Postfix '" + parameter.postFix + "' isn't in postfix array");
+                        }
+                        type = ARG_FLAG_POSTFIX | i;
+                    } else {
+                        type |= ARG_FLAG_VALID;
+                        if (parameter.enumData != null) {
+                            type |= ARG_FLAG_ENUM | enums.indexOf(parameter.enumData);
+                        } else {
+                            type |= parameter.type.getId();
+                        }
+                    }
+
+                    putLInt(type);
+                    putBoolean(parameter.optional);
+                    putByte(parameter.options); // TODO: 19/03/2019 Bit flags. Only first bit is used for GameRules.
+                }
+            }
+        });
+
+        this.putUnsignedVarInt(softEnums.size());
+        softEnums.forEach((name, values) -> {
+            this.putString(name);
+            this.putUnsignedVarInt(values.size());
+            values.forEach(this::putString);
+        });
+
+        this.putUnsignedVarInt(0);
+    }
 }

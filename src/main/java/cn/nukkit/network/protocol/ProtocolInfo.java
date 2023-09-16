@@ -16,8 +16,7 @@ public interface ProtocolInfo {
     @SuppressWarnings("UnnecessaryBoxing")
     int CURRENT_PROTOCOL = Integer.valueOf("594"); // DO NOT REMOVE BOXING
 
-    @SuppressWarnings("UnnecessaryBoxing")
-    int PROTOCOL_589 = Integer.valueOf("589");
+    int PROTOCOL_589 = 589;
 
     List<Integer> SUPPORTED_PROTOCOLS = Ints.asList(CURRENT_PROTOCOL, PROTOCOL_589);
 

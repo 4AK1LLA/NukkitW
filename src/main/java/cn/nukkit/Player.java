@@ -101,6 +101,8 @@ import java.util.function.Consumer;
 @Log4j2
 public class Player extends EntityHuman implements CommandSender, InventoryHolder, ChunkLoader, IPlayer {
 
+    private int protocolVersion;
+
     public static final int SURVIVAL = 0;
     public static final int CREATIVE = 1;
     public static final int ADVENTURE = 2;
@@ -2170,6 +2172,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                     this.loginPacketReceived = true;
 
                     LoginPacket loginPacket = (LoginPacket) packet;
+                    this.protocolVersion = loginPacket.getProtocol();
                     this.username = TextFormat.clean(loginPacket.username);
                     this.displayName = this.username;
                     this.iusername = this.username.toLowerCase();
@@ -5522,5 +5525,9 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
 
         this.server.getScheduler().scheduleAsyncTask(this.preLoginEventTask);
         this.processLogin();
+    }
+
+    public int getProtocolVersion() {
+        return this.protocolVersion;
     }
 }

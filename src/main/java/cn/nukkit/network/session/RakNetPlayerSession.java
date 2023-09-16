@@ -132,9 +132,14 @@ public class RakNetPlayerSession implements NetworkPlayerSession, RakNetSessionL
             return;
         }
 
-        if (packet.pid() != ProtocolInfo.BATCH_PACKET) {
-            packet.tryEncode();
+        switch (packet.pid()) {
+            case ProtocolInfo.BATCH_PACKET: break;
+            case ProtocolInfo.AVAILABLE_COMMANDS_PACKET:
+                packet.tryEncodeWithProtocol(player.getProtocolVersion()); break;
+            default:
+                packet.tryEncode(); break;
         }
+
         this.outbound.offer(packet);
     }
 

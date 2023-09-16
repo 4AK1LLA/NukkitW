@@ -29,6 +29,25 @@ public abstract class DataPacket extends BinaryStream implements Cloneable {
         }
     }
 
+    public final void tryEncodeWithProtocol(int protocolVersion) {
+        if (this.isEncoded)
+            return;
+
+        this.isEncoded = true;
+        switch (protocolVersion) {
+            case ProtocolInfo.PROTOCOL_589:
+                this.encode589(); break;
+            default:
+                this.encode(); break;
+        }
+    }
+
+    public void encode589() {
+        String message = "encode589() is not implemented for packet " + this.pid();
+        Server.getInstance().getLogger().alert(message);
+        throw new UnsupportedOperationException(message);
+    }
+
     @Override
     public DataPacket reset() {
         super.reset();
