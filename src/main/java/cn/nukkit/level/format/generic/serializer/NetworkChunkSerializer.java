@@ -35,7 +35,7 @@ public class NetworkChunkSerializer {
         negativeSubChunks = stream.getBuffer();
     }
 
-    public static void serialize(BaseChunk chunk, BiConsumer<BinaryStream, Integer> callback, DimensionData dimensionData) {
+    public static void serialize(int protocol, BaseChunk chunk, BiConsumer<BinaryStream, Integer> callback, DimensionData dimensionData) {
         byte[] blockEntities;
         if (chunk.getBlockEntities().isEmpty()) {
             blockEntities = new byte[0];
@@ -68,7 +68,7 @@ public class NetworkChunkSerializer {
         }
 
         for (int i = 0; i < subChunkCount; i++) {
-            sections[i].writeTo(stream);
+            sections[i].writeTo(stream, protocol);
         }
 
         stream.put(biomePalettes);

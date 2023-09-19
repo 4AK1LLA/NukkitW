@@ -148,7 +148,7 @@ public class Level implements ChunkManager, Metadatable {
     private boolean cacheChunks = false;
 
     private final Server server;
-    
+
     private final int levelId;
 
     private LevelProvider provider;
@@ -193,8 +193,8 @@ public class Level implements ChunkManager, Metadatable {
 //    private final List<BlockUpdateEntry> nextTickUpdates = Lists.newArrayList();
     //private final Map<BlockVector3, Integer> updateQueueIndex = new HashMap<>();
 
-    private final ConcurrentMap<Long, Int2ObjectMap<Player>> chunkSendQueue = new ConcurrentHashMap<>();
-    private final LongSet chunkSendTasks = new LongOpenHashSet();
+    private final Map<Integer, ConcurrentMap<Long, Int2ObjectMap<Player>>> protocolChunkSendQueues = new HashMap<>();
+    private final Map<Integer, LongSet> protocolChunkSendTasks = new HashMap<>();
 
     private final Long2ObjectOpenHashMap<Boolean> chunkPopulationQueue = new Long2ObjectOpenHashMap<>();
     private final Long2ObjectOpenHashMap<Boolean> chunkPopulationLock = new Long2ObjectOpenHashMap<>();
@@ -2073,7 +2073,7 @@ public class Level implements ChunkManager, Metadatable {
         if (block.y > 127 && this.getDimension() == DIMENSION_NETHER) {
             return null;
         }
-        
+
         if (target.getId() == Item.AIR) {
             return null;
         }
@@ -2635,53 +2635,67 @@ public class Level implements ChunkManager, Metadatable {
     public void requestChunk(int x, int z, Player player) {
         Preconditions.checkState(player.getLoaderId() > 0, player.getName() + " has no chunk loader");
         long index = Level.chunkHash(x, z);
-
-        this.chunkSendQueue.putIfAbsent(index, new Int2ObjectOpenHashMap<>());
-
-        this.chunkSendQueue.get(index).put(player.getLoaderId(), player);
+        ConcurrentMap<Long, Int2ObjectMap<Player>> chunkSendQueue = this.getChunkSendQueue(player.getProtocolVersion());
+        chunkSendQueue.putIfAbsent(index, new Int2ObjectOpenHashMap<>());
+        chunkSendQueue.get(index).put(player.getLoaderId(), player);
     }
 
-    private void sendChunk(int x, int z, long index, DataPacket packet) {
-        if (this.chunkSendTasks.contains(index)) {
-            for (Player player : this.chunkSendQueue.get(index).values()) {
-                if (player.isConnected() && player.usedChunks.containsKey(index)) {
-                    player.sendChunk(x, z, packet);
+    private void sendChunk(int x, int z, long index, DataPacket packet) { // ready
+        for (int protocol: protocolChunkSendQueues.keySet()) {
+            LongSet chunkSendTasks = this.getChunkSendTasks(protocol);
+            if (chunkSendTasks.contains(index)) {
+                ConcurrentMap<Long, Int2ObjectMap<Player>> chunkSendQueue = this.getChunkSendQueue(protocol);
+                for (Player player : chunkSendQueue.get(index).values()) {
+                    if (player.isConnected() && player.usedChunks.containsKey(index)) {
+                        player.sendChunk(x, z, packet);
+                    }
                 }
+                chunkSendQueue.remove(index);
+                chunkSendTasks.remove(index);
             }
-
-            this.chunkSendQueue.remove(index);
-            this.chunkSendTasks.remove(index);
         }
+    }
+
+    private ConcurrentMap<Long, Int2ObjectMap<Player>> getChunkSendQueue(int protocol) {
+        return this.protocolChunkSendQueues.computeIfAbsent(protocol, i -> new ConcurrentHashMap<>());
+    }
+
+    private LongSet getChunkSendTasks(int protocol) {
+        return this.protocolChunkSendTasks.computeIfAbsent(protocol, i -> new LongOpenHashSet());
     }
 
     private void processChunkRequest() {
         this.timings.syncChunkSendTimer.startTiming();
-        for (long index : this.chunkSendQueue.keySet()) {
-            if (this.chunkSendTasks.contains(index)) {
-                continue;
-            }
-            int x = getHashX(index);
-            int z = getHashZ(index);
-            this.chunkSendTasks.add(index);
-            BaseFullChunk chunk = getChunk(x, z);
-            if (chunk != null) {
-                BatchPacket packet = chunk.getChunkPacket();
-                if (packet != null) {
-                    this.sendChunk(x, z, index, packet);
+        for (int protocol: protocolChunkSendQueues.keySet()) {
+            for (long index : this.getChunkSendQueue(protocol).keySet()) {
+                LongSet chunkSendTasks = this.getChunkSendTasks(protocol);
+                if (chunkSendTasks.contains(index)) {
                     continue;
                 }
+                int x = getHashX(index);
+                int z = getHashZ(index);
+                chunkSendTasks.add(index);
+                BaseFullChunk chunk = getChunk(x, z);
+                if (chunk != null) {
+                    BatchPacket packet = chunk.getChunkPacket();
+                    if (packet != null) {
+                        this.sendChunk(x, z, index, packet);
+                        continue;
+                    }
+                }
+                this.timings.syncChunkSendPrepareTimer.startTiming();
+                AsyncTask task = this.provider.requestChunkTask(protocol, x, z);
+                if (task != null) {
+                    this.server.getScheduler().scheduleAsyncTask(task);
+                }
+                this.timings.syncChunkSendPrepareTimer.stopTiming();
             }
-            this.timings.syncChunkSendPrepareTimer.startTiming();
-            AsyncTask task = this.provider.requestChunkTask(x, z);
-            if (task != null) {
-                this.server.getScheduler().scheduleAsyncTask(task);
-            }
-            this.timings.syncChunkSendPrepareTimer.stopTiming();
         }
+
         this.timings.syncChunkSendTimer.stopTiming();
     }
 
-    public void chunkRequestCallback(long timestamp, int x, int z, int subChunkCount, byte[] payload) {
+    public void chunkRequestCallback(int protocol, long timestamp, int x, int z, int subChunkCount, byte[] payload) {
         this.timings.syncChunkSendTimer.startTiming();
         long index = Level.chunkHash(x, z);
 
@@ -2696,15 +2710,17 @@ public class Level implements ChunkManager, Metadatable {
             return;
         }
 
-        if (this.chunkSendTasks.contains(index)) {
-            for (Player player : this.chunkSendQueue.get(index).values()) {
+        LongSet chunkSendTasks = this.getChunkSendTasks(protocol);
+        if (chunkSendTasks.contains(index)) {
+            ConcurrentMap<Long, Int2ObjectMap<Player>> chunkSendQueue = this.getChunkSendQueue(protocol);
+            for (Player player : chunkSendQueue.get(index).values()) {
                 if (player.isConnected() && player.usedChunks.containsKey(index)) {
                     player.sendChunk(x, z, subChunkCount, payload);
                 }
             }
 
-            this.chunkSendQueue.remove(index);
-            this.chunkSendTasks.remove(index);
+            chunkSendQueue.remove(index);
+            chunkSendTasks.remove(index);
         }
         this.timings.syncChunkSendTimer.stopTiming();
     }

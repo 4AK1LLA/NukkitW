@@ -103,7 +103,7 @@ public class Anvil extends BaseLevelProvider {
     }
 
     @Override
-    public AsyncTask requestChunkTask(int x, int z) throws ChunkException {
+    public AsyncTask requestChunkTask(int protocol, int x, int z) throws ChunkException {
         Chunk chunk = (Chunk) this.getChunk(x, z, false);
         if (chunk == null) {
             throw new ChunkException("Invalid Chunk Set");
@@ -111,8 +111,8 @@ public class Anvil extends BaseLevelProvider {
 
         long timestamp = chunk.getChanges();
         BiConsumer<BinaryStream, Integer> callback = (stream, subchunks) ->
-                this.getLevel().chunkRequestCallback(timestamp, x, z, subchunks, stream.getBuffer());
-        NetworkChunkSerializer.serialize(chunk, callback, this.level.getDimensionData());
+                this.getLevel().chunkRequestCallback(protocol, timestamp, x, z, subchunks, stream.getBuffer());
+        NetworkChunkSerializer.serialize(protocol, chunk, callback, this.level.getDimensionData());
         return null;
     }
 

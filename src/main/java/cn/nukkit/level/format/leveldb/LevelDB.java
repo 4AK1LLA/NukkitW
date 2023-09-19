@@ -162,7 +162,7 @@ public class LevelDB implements LevelProvider {
     }
 
     @Override
-    public AsyncTask requestChunkTask(int x, int z) {
+    public AsyncTask requestChunkTask(int protocol, int x, int z) {
         Chunk chunk = this.getChunk(x, z, false);
         if (chunk == null) {
             throw new ChunkException("Invalid Chunk sent");
@@ -205,7 +205,7 @@ public class LevelDB implements LevelProvider {
             }
         }
 
-        this.getLevel().chunkRequestCallback(timestamp, x, z, 16, stream.getBuffer());
+        this.getLevel().chunkRequestCallback(protocol, timestamp, x, z, 16, stream.getBuffer());
 
         return null;
     }

@@ -317,11 +317,11 @@ public class ChunkSection implements cn.nukkit.level.format.ChunkSection {
     }
 
     @Override
-    public void writeTo(BinaryStream stream) {
+    public void writeTo(BinaryStream stream, int protocol) {
         synchronized (storage) {
             stream.putByte((byte) 8); // Paletted chunk because Mojang messed up the old one
             stream.putByte((byte) 2);
-            this.storage.writeTo(stream);
+            this.storage.writeTo(stream, protocol);
             EMPTY_STORAGE.writeTo(stream);
         }
     }
