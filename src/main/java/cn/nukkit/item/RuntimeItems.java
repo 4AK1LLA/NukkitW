@@ -3,6 +3,7 @@ package cn.nukkit.item;
 import cn.nukkit.item.RuntimeItemMapping.LegacyEntry;
 import cn.nukkit.Server;
 import cn.nukkit.level.GlobalBlockPalette;
+import cn.nukkit.network.protocol.ProtocolInfo;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import lombok.Data;
@@ -84,7 +85,7 @@ public class RuntimeItems {
             damage = legacyEntry.getDamage();
         } else if (json.has("blockRuntimeId")) {
             int runtimeId = json.get("blockRuntimeId").getAsInt();
-            int fullId = GlobalBlockPalette.getLegacyFullId(runtimeId);
+            int fullId = GlobalBlockPalette.getLegacyFullId(ProtocolInfo.CURRENT_PROTOCOL, runtimeId);
             if (fullId == -1) {
                 if (ignoreUnknown) {
                     return null;

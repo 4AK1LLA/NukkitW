@@ -1049,26 +1049,27 @@ public class Level implements ChunkManager, Metadatable {
                 }
             }
 
-            UpdateBlockPacket updateBlockPacket = new UpdateBlockPacket();
-            updateBlockPacket.x = (int) b.x;
-            updateBlockPacket.y = (int) b.y;
-            updateBlockPacket.z = (int) b.z;
-            updateBlockPacket.flags = first ? flags : UpdateBlockPacket.FLAG_NONE;
-            updateBlockPacket.dataLayer = dataLayer;
-            int fullId;
-            if (b instanceof Block) {
-                fullId = ((Block) b).getFullId();
-            } else {
-                fullId = getFullBlock((int) b.x, (int) b.y, (int) b.z);
+            for (Player player : target) {
+                UpdateBlockPacket updateBlockPacket = new UpdateBlockPacket();
+                updateBlockPacket.x = (int) b.x;
+                updateBlockPacket.y = (int) b.y;
+                updateBlockPacket.z = (int) b.z;
+                updateBlockPacket.flags = first ? flags : UpdateBlockPacket.FLAG_NONE;
+                updateBlockPacket.dataLayer = dataLayer;
+                int fullId;
+                if (b instanceof Block) {
+                    fullId = ((Block) b).getFullId();
+                } else {
+                    fullId = getFullBlock((int) b.x, (int) b.y, (int) b.z);
+                }
+                try {
+                    updateBlockPacket.blockRuntimeId = GlobalBlockPalette.getOrCreateRuntimeId(player.getProtocolVersion(), fullId);
+                } catch (NoSuchElementException e) {
+                    throw new IllegalStateException("Unable to create BlockUpdatePacket at (" +
+                            b.x + ", " + b.y + ", " + b.z + ") in " + getName(), e);
+                }
+                player.dataPacket(updateBlockPacket);
             }
-            try {
-                updateBlockPacket.blockRuntimeId = GlobalBlockPalette.getOrCreateRuntimeId(fullId);
-            } catch (NoSuchElementException e) {
-                throw new IllegalStateException("Unable to create BlockUpdatePacket at (" +
-                        b.x + ", " + b.y + ", " + b.z + ") in " + getName(), e);
-            }
-
-            Server.broadcastPacket(target, updateBlockPacket);
         }
     }
 
@@ -2205,7 +2206,7 @@ public class Level implements ChunkManager, Metadatable {
         }
 
         if (playSound) {
-            this.addLevelSoundEvent(hand, LevelSoundEventPacket.SOUND_PLACE, GlobalBlockPalette.getOrCreateRuntimeId(hand.getId(), hand.getDamage()));
+            this.addLevelSoundEvent(hand, LevelSoundEventPacket.SOUND_PLACE, GlobalBlockPalette.getOrCreateRuntimeId(ProtocolInfo.CURRENT_PROTOCOL, hand.getId(), hand.getDamage()));
         }
 
         if (item.getCount() <= 0) {

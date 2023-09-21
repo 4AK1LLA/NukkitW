@@ -477,7 +477,7 @@ public class Server {
         Effect.init();
         Potion.init();
         Attribute.init();
-        GlobalBlockPalette.getOrCreateRuntimeId(0, 0); //Force it to load
+        GlobalBlockPalette.getOrCreateRuntimeId(ProtocolInfo.CURRENT_PROTOCOL, 0, 0); //Force it to load
 
         // Convert legacy data before plugins get the chance to mess with it.
         try {

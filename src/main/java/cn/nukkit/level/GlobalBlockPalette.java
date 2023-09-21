@@ -80,24 +80,8 @@ public class GlobalBlockPalette {
         return true;
     }
 
-    public static int getOrCreateRuntimeId(int id, int meta) {
-        int legacyId = id << 6 | meta;
-        int runtimeId = legacyToRuntimeId.get(legacyId);
-        if (runtimeId == -1) {
-            runtimeId = legacyToRuntimeId.get(id << 6);
-            if (runtimeId == -1 && id != BlockID.INFO_UPDATE) {
-                log.info("Unable to find runtime id for {}", id);
-                return getOrCreateRuntimeId(BlockID.INFO_UPDATE, 0);
-            } else if (id == BlockID.INFO_UPDATE){
-                throw new IllegalStateException("InfoUpdate state is missing!");
-            }
-        }
-        return runtimeId;
-    }
-
     public static int getOrCreateRuntimeId(int protocol, int id, int meta) {
         Int2IntMap legacyToRuntimeId = getLegacyToRuntimeIdMap(protocol);
-
         int legacyId = id << 6 | meta;
         int runtimeId = legacyToRuntimeId.get(legacyId);
         if (runtimeId == -1) {
@@ -112,13 +96,12 @@ public class GlobalBlockPalette {
         return runtimeId;
     }
 
-    //TODO: check usages of this methods
-    public static int getOrCreateRuntimeId(int legacyId) throws NoSuchElementException {
-        return getOrCreateRuntimeId(legacyId >> 4, legacyId & 0xf);
+    public static int getOrCreateRuntimeId(int protocol, int legacyId) throws NoSuchElementException {
+        return getOrCreateRuntimeId(protocol, legacyId >> 4, legacyId & 0xf);
     }
 
-    public static int getLegacyFullId(int runtimeId) {
-        return runtimeIdToLegacy.get(runtimeId);
+    public static int getLegacyFullId(int protocol, int runtimeId) {
+        return getRuntimeIdToLegacyMap(protocol).get(runtimeId);
     }
 
     private static Int2IntMap getLegacyToRuntimeIdMap(int protocol) {

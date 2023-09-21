@@ -1,6 +1,7 @@
 package cn.nukkit.level.util;
 
 import cn.nukkit.level.GlobalBlockPalette;
+import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.utils.BinaryStream;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -19,7 +20,7 @@ public class PalettedBlockStorage {
     }
 
     public static PalettedBlockStorage createFromBlockPalette(BitArrayVersion version) {
-        int runtimeId = GlobalBlockPalette.getOrCreateRuntimeId(0); // Air is first
+        int runtimeId = GlobalBlockPalette.getOrCreateRuntimeId(ProtocolInfo.CURRENT_PROTOCOL, 0); // Air is first
         return new PalettedBlockStorage(version, runtimeId);
     }
 

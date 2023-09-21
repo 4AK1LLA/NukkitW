@@ -18,6 +18,7 @@ import cn.nukkit.nbt.tag.ListTag;
 import cn.nukkit.nbt.tag.StringTag;
 import cn.nukkit.network.LittleEndianByteBufInputStream;
 import cn.nukkit.network.LittleEndianByteBufOutputStream;
+import cn.nukkit.network.protocol.ProtocolInfo;
 import cn.nukkit.network.protocol.types.EntityLink;
 import io.netty.buffer.AbstractByteBufAllocator;
 import io.netty.buffer.ByteBuf;
@@ -407,7 +408,7 @@ public class BinaryStream {
 
         int blockRuntimeId = this.getVarInt();
         if (id < 256 && id != 166) { // ItemBlock
-            int fullId = GlobalBlockPalette.getLegacyFullId(blockRuntimeId);
+            int fullId = GlobalBlockPalette.getLegacyFullId(ProtocolInfo.CURRENT_PROTOCOL, blockRuntimeId);
             if (fullId != -1) {
                 damage = fullId & 0x3f;
             }
@@ -525,7 +526,7 @@ public class BinaryStream {
         }
 
         Block block = isBlock ? item.getBlockUnsafe() : null;
-        int blockRuntimeId = block == null ? 0 : GlobalBlockPalette.getOrCreateRuntimeId(block.getId(), block.getDamage());
+        int blockRuntimeId = block == null ? 0 : GlobalBlockPalette.getOrCreateRuntimeId(ProtocolInfo.CURRENT_PROTOCOL, block.getId(), block.getDamage());
         this.putVarInt(blockRuntimeId);
 
         ByteBuf userDataBuf = ByteBufAllocator.DEFAULT.ioBuffer();
